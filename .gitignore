@@ -1,0 +1,6 @@
+node_modules/
+.local/
+test-results/
+__pycache__/
+*.pyc
+.env

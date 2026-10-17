@@ -1,0 +1,27 @@
+{
+  "name": "toolplane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "init": "bun src/cli.ts init",
+    "start": "bun src/main.ts",
+    "cli": "bun src/cli.ts",
+    "mcp": "bun src/mcp.ts",
+    "auth:notion": "bun src/auth-notion.ts",
+    "check": "tsc --noEmit",
+    "test": "bun test",
+    "test:python": "python3 -m unittest discover -s tests -p 'test_*.py' -v",
+    "test:ui": "bun tests/run-ui.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "ajv": "^8.17.1",
+    "mcporter": "^0.12.4",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.3",
+    "typescript": "^5.9.3"
+  }
+}
