@@ -6,7 +6,8 @@ receive only explicitly granted capabilities through **search + call**.
 
 **Status:** working v0 vertical slice, not a production multi-tenant gateway.
 Built with Bun, TypeScript, SQLite, MCPorter, and the MCP SDK. No LLM required.
-The preceding research remains in [`../tool-routing-lab`](../tool-routing-lab).
+The preceding [research and reproducible benchmark evidence](docs/research/README.md)
+live in this repository; no separate research project is required.
 
 ## Start
 

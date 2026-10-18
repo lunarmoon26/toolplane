@@ -1,0 +1,34 @@
+{
+  "tools": [
+    {"id":"blender::blender_status","description":"Check Blender bridge status, version, scene, camera and world.","effect":"read"},
+    {"id":"blender::blender_scene_info","description":"Read Blender scene, selection, render settings and bounded object summaries.","effect":"read"},
+    {"id":"blender::blender_object_info","description":"Read transform, dimensions, materials and world bounds for a named Blender object.","effect":"read"},
+    {"id":"blender::blender","description":"Execute Python in Blender to create or modify scene objects. Assign a JSON dictionary to result.","effect":"unknown"},
+    {"id":"blender::polyhaven","description":"Search Poly Haven assets; download and import models, HDRI environments and PBR materials.","effect":"mixed"},
+    {"id":"blender::threejs_export","description":"Export selected Blender objects as GLB and generate a standalone Three.js viewer.","effect":"write"},
+    {"id":"notion::notion-search","description":"Search Notion workspace pages and documents by query.","effect":"read"},
+    {"id":"notion::notion-fetch","description":"Fetch Notion page content by page identifier or URL.","effect":"read"},
+    {"id":"notion::notion-move-pages","description":"Move Notion pages under a parent page.","effect":"write"},
+    {"id":"cloudflare::search","description":"Search Cloudflare API endpoint documentation for Workers, DNS, zones and accounts.","effect":"read"},
+    {"id":"cloudflare::execute","description":"Execute code calling Cloudflare API operations to manage Workers, DNS, zones and accounts.","effect":"unknown"},
+    {"id":"skills::harness_alchemist_run","description":"Run the Harness Alchemist shared skill workflow.","effect":"read"}
+  ],
+  "queries": [
+    {"query":"blender::blender_status","expected":"blender::blender_status"},
+    {"query":"Blender version bridge status","expected":"blender::blender_status"},
+    {"query":"Blender selected objects scene","expected":"blender::blender_scene_info"},
+    {"query":"Blender object dimensions materials","expected":"blender::blender_object_info"},
+    {"query":"create scene objects Python","expected":"blender::blender"},
+    {"query":"find HDRI environment assets","expected":"blender::polyhaven"},
+    {"query":"export GLB Three.js viewer","expected":"blender::threejs_export"},
+    {"query":"search Notion workspace documents","expected":"notion::notion-search"},
+    {"query":"fetch Notion page content URL","expected":"notion::notion-fetch"},
+    {"query":"move Notion pages parent","expected":"notion::notion-move-pages"},
+    {"query":"search Cloudflare API endpoint documentation DNS","expected":"cloudflare::search"},
+    {"query":"execute Cloudflare Workers operations","expected":"cloudflare::execute"},
+    {"query":"Harness Alchemist workflow","expected":"skills::harness_alchemist_run"},
+    {"query":"how big is the cube","expected":"blender::blender_object_info"},
+    {"query":"查找我的笔记","expected":"notion::notion-search"},
+    {"query":"查看物体尺寸","expected":"blender::blender_object_info"}
+  ]
+}

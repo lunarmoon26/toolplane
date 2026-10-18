@@ -1,0 +1,519 @@
+{
+  "python": "3.13.16",
+  "platform": "Linux-7.0.12-linuxkit-x86_64-with",
+  "limitations": "Handwritten diagnostic fixtures; synthetic scale; no model, tokens, network, dispatch or sandbox evaluation.",
+  "retrieval": [
+    {
+      "tools": 12,
+      "build_ms": 0.185782,
+      "warm_p50_ms": 0.00484,
+      "warm_p95_ms": 0.009,
+      "hit1": 12,
+      "hit3": 13,
+      "queries": 16,
+      "cases": [
+        {
+          "query": "blender::blender_status",
+          "expected": "blender::blender_status",
+          "hits": [
+            "blender::blender_status"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "Blender version bridge status",
+          "expected": "blender::blender_status",
+          "hits": [
+            "blender::blender_status",
+            "blender::blender_scene_info",
+            "blender::blender_object_info"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "Blender selected objects scene",
+          "expected": "blender::blender_scene_info",
+          "hits": [
+            "blender::threejs_export",
+            "blender::blender",
+            "blender::blender_scene_info"
+          ],
+          "hit1": false,
+          "hit3": true
+        },
+        {
+          "query": "Blender object dimensions materials",
+          "expected": "blender::blender_object_info",
+          "hits": [
+            "blender::blender_object_info",
+            "blender::blender_scene_info",
+            "blender::polyhaven"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "create scene objects Python",
+          "expected": "blender::blender",
+          "hits": [
+            "blender::blender",
+            "blender::blender_scene_info",
+            "blender::threejs_export"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "find HDRI environment assets",
+          "expected": "blender::polyhaven",
+          "hits": [
+            "blender::polyhaven"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "export GLB Three.js viewer",
+          "expected": "blender::threejs_export",
+          "hits": [
+            "blender::threejs_export"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "search Notion workspace documents",
+          "expected": "notion::notion-search",
+          "hits": [
+            "notion::notion-search",
+            "notion::notion-move-pages",
+            "notion::notion-fetch"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "fetch Notion page content URL",
+          "expected": "notion::notion-fetch",
+          "hits": [
+            "notion::notion-fetch",
+            "notion::notion-move-pages",
+            "notion::notion-search"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "move Notion pages parent",
+          "expected": "notion::notion-move-pages",
+          "hits": [
+            "notion::notion-move-pages",
+            "notion::notion-search",
+            "notion::notion-fetch"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "search Cloudflare API endpoint documentation DNS",
+          "expected": "cloudflare::search",
+          "hits": [
+            "cloudflare::search",
+            "cloudflare::execute",
+            "notion::notion-search"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "execute Cloudflare Workers operations",
+          "expected": "cloudflare::execute",
+          "hits": [
+            "cloudflare::execute",
+            "cloudflare::search",
+            "blender::blender"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "Harness Alchemist workflow",
+          "expected": "skills::harness_alchemist_run",
+          "hits": [
+            "skills::harness_alchemist_run"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "how big is the cube",
+          "expected": "blender::blender_object_info",
+          "hits": [
+            "skills::harness_alchemist_run"
+          ],
+          "hit1": false,
+          "hit3": false
+        },
+        {
+          "query": "查找我的笔记",
+          "expected": "notion::notion-search",
+          "hits": [],
+          "hit1": false,
+          "hit3": false
+        },
+        {
+          "query": "查看物体尺寸",
+          "expected": "blender::blender_object_info",
+          "hits": [],
+          "hit1": false,
+          "hit3": false
+        }
+      ]
+    },
+    {
+      "tools": 1000,
+      "build_ms": 3.827896,
+      "warm_p50_ms": 0.00399,
+      "warm_p95_ms": 0.00551,
+      "hit1": 12,
+      "hit3": 13,
+      "queries": 16,
+      "cases": [
+        {
+          "query": "blender::blender_status",
+          "expected": "blender::blender_status",
+          "hits": [
+            "blender::blender_status"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "Blender version bridge status",
+          "expected": "blender::blender_status",
+          "hits": [
+            "blender::blender_status",
+            "blender::blender_scene_info",
+            "blender::blender_object_info"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "Blender selected objects scene",
+          "expected": "blender::blender_scene_info",
+          "hits": [
+            "blender::threejs_export",
+            "blender::blender",
+            "blender::blender_scene_info"
+          ],
+          "hit1": false,
+          "hit3": true
+        },
+        {
+          "query": "Blender object dimensions materials",
+          "expected": "blender::blender_object_info",
+          "hits": [
+            "blender::blender_object_info",
+            "blender::blender_scene_info",
+            "blender::polyhaven"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "create scene objects Python",
+          "expected": "blender::blender",
+          "hits": [
+            "blender::blender",
+            "blender::blender_scene_info",
+            "blender::blender_status"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "find HDRI environment assets",
+          "expected": "blender::polyhaven",
+          "hits": [
+            "blender::polyhaven"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "export GLB Three.js viewer",
+          "expected": "blender::threejs_export",
+          "hits": [
+            "blender::threejs_export"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "search Notion workspace documents",
+          "expected": "notion::notion-search",
+          "hits": [
+            "notion::notion-search",
+            "notion::notion-move-pages",
+            "notion::notion-fetch"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "fetch Notion page content URL",
+          "expected": "notion::notion-fetch",
+          "hits": [
+            "notion::notion-fetch",
+            "notion::notion-move-pages",
+            "notion::notion-search"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "move Notion pages parent",
+          "expected": "notion::notion-move-pages",
+          "hits": [
+            "notion::notion-move-pages",
+            "notion::notion-search",
+            "notion::notion-fetch"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "search Cloudflare API endpoint documentation DNS",
+          "expected": "cloudflare::search",
+          "hits": [
+            "cloudflare::search",
+            "cloudflare::execute",
+            "notion::notion-search"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "execute Cloudflare Workers operations",
+          "expected": "cloudflare::execute",
+          "hits": [
+            "cloudflare::execute",
+            "cloudflare::search",
+            "blender::blender"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "Harness Alchemist workflow",
+          "expected": "skills::harness_alchemist_run",
+          "hits": [
+            "skills::harness_alchemist_run"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "how big is the cube",
+          "expected": "blender::blender_object_info",
+          "hits": [
+            "skills::harness_alchemist_run"
+          ],
+          "hit1": false,
+          "hit3": false
+        },
+        {
+          "query": "查找我的笔记",
+          "expected": "notion::notion-search",
+          "hits": [],
+          "hit1": false,
+          "hit3": false
+        },
+        {
+          "query": "查看物体尺寸",
+          "expected": "blender::blender_object_info",
+          "hits": [],
+          "hit1": false,
+          "hit3": false
+        }
+      ]
+    },
+    {
+      "tools": 10000,
+      "build_ms": 46.082776,
+      "warm_p50_ms": 0.00395,
+      "warm_p95_ms": 0.00546,
+      "hit1": 12,
+      "hit3": 13,
+      "queries": 16,
+      "cases": [
+        {
+          "query": "blender::blender_status",
+          "expected": "blender::blender_status",
+          "hits": [
+            "blender::blender_status"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "Blender version bridge status",
+          "expected": "blender::blender_status",
+          "hits": [
+            "blender::blender_status",
+            "blender::blender_scene_info",
+            "blender::blender_object_info"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "Blender selected objects scene",
+          "expected": "blender::blender_scene_info",
+          "hits": [
+            "blender::threejs_export",
+            "blender::blender",
+            "blender::blender_scene_info"
+          ],
+          "hit1": false,
+          "hit3": true
+        },
+        {
+          "query": "Blender object dimensions materials",
+          "expected": "blender::blender_object_info",
+          "hits": [
+            "blender::blender_object_info",
+            "blender::blender_scene_info",
+            "blender::polyhaven"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "create scene objects Python",
+          "expected": "blender::blender",
+          "hits": [
+            "blender::blender",
+            "blender::blender_scene_info",
+            "blender::blender_status"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "find HDRI environment assets",
+          "expected": "blender::polyhaven",
+          "hits": [
+            "blender::polyhaven"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "export GLB Three.js viewer",
+          "expected": "blender::threejs_export",
+          "hits": [
+            "blender::threejs_export"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "search Notion workspace documents",
+          "expected": "notion::notion-search",
+          "hits": [
+            "notion::notion-search",
+            "notion::notion-move-pages",
+            "notion::notion-fetch"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "fetch Notion page content URL",
+          "expected": "notion::notion-fetch",
+          "hits": [
+            "notion::notion-fetch",
+            "notion::notion-move-pages",
+            "notion::notion-search"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "move Notion pages parent",
+          "expected": "notion::notion-move-pages",
+          "hits": [
+            "notion::notion-move-pages",
+            "notion::notion-search",
+            "notion::notion-fetch"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "search Cloudflare API endpoint documentation DNS",
+          "expected": "cloudflare::search",
+          "hits": [
+            "cloudflare::search",
+            "cloudflare::execute",
+            "notion::notion-search"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "execute Cloudflare Workers operations",
+          "expected": "cloudflare::execute",
+          "hits": [
+            "cloudflare::execute",
+            "cloudflare::search",
+            "blender::blender"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "Harness Alchemist workflow",
+          "expected": "skills::harness_alchemist_run",
+          "hits": [
+            "skills::harness_alchemist_run"
+          ],
+          "hit1": true,
+          "hit3": true
+        },
+        {
+          "query": "how big is the cube",
+          "expected": "blender::blender_object_info",
+          "hits": [
+            "skills::harness_alchemist_run"
+          ],
+          "hit1": false,
+          "hit3": false
+        },
+        {
+          "query": "查找我的笔记",
+          "expected": "notion::notion-search",
+          "hits": [],
+          "hit1": false,
+          "hit3": false
+        },
+        {
+          "query": "查看物体尺寸",
+          "expected": "blender::blender_object_info",
+          "hits": [],
+          "hit1": false,
+          "hit3": false
+        }
+      ]
+    }
+  ],
+  "composition_simulation": {
+    "raw_result_bytes": 104581,
+    "selected_answer_bytes": 47,
+    "note": "Excludes control schemas and generated program bytes; not total task cost."
+  }
+}
