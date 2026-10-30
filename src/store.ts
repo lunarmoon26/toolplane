@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite"
 import { randomUUID } from "node:crypto"
-import { canonicalJSON, Fault, fingerprint, hash, newToken, type Caller, type Descriptor, type Source, type SourceConfig, type Tool } from "./contracts"
+import { accessPolicy, canonicalJSON, Fault, fingerprint, hash, newToken, type AccessPolicy, type Caller, type Descriptor, type Source, type SourceConfig, type Tool } from "./contracts"
+import { requiresApproval } from "./policy"
 
 type SourceRow = { id: string; name: string; config: string; enabled: number; revision: number; refreshed_at: string | null }
 type ToolRow = { id: string; source_id: string; descriptor: string; fingerprint: string }
@@ -24,8 +25,32 @@ export class Store {
     this.db.exec(`CREATE TABLE IF NOT EXISTS approvals(id TEXT PRIMARY KEY, caller_id TEXT NOT NULL,
       tool_id TEXT NOT NULL, source_id TEXT NOT NULL, revision INTEGER NOT NULL, fingerprint TEXT NOT NULL,
       args_hash TEXT NOT NULL, arguments TEXT, status TEXT NOT NULL, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL);`)
+    this.db.exec(`CREATE TABLE IF NOT EXISTS admin_sessions(token_hash TEXT PRIMARY KEY,
+      admin_hash TEXT NOT NULL, origin TEXT NOT NULL, expires_at INTEGER NOT NULL);`)
+    const columns = this.db.query<{ name: string }, []>("PRAGMA table_info(grants)").all().map(column => column.name)
+    this.db.transaction(() => {
+      if (!columns.includes("policy")) this.db.exec("ALTER TABLE grants ADD COLUMN policy TEXT NOT NULL DEFAULT '{\"mode\":\"legacy\"}'")
+      if (!columns.includes("revision")) this.db.exec("ALTER TABLE grants ADD COLUMN revision TEXT NOT NULL DEFAULT 'legacy'")
+    })()
   }
   sources() { return this.db.query<SourceRow, []>("SELECT * FROM sources ORDER BY name,id").all().map(sourceFrom) }
+  pruneAdminSessions(adminHash: string) {
+    this.db.query("DELETE FROM admin_sessions WHERE expires_at<=? OR admin_hash<>?").run(Date.now(), adminHash)
+  }
+  createAdminSession(adminHash: string, origin: string) {
+    this.pruneAdminSessions(adminHash)
+    const count = this.db.query<{ n: number }, []>("SELECT count(*) AS n FROM admin_sessions").get()!.n
+    if (count >= 100) throw new Fault("session_limit", "Too many active browser sessions; revoke a session or wait for expiry", 429)
+    const token = newToken(), expiresAt = Date.now() + 7 * 86_400_000
+    this.db.query("INSERT INTO admin_sessions VALUES(?,?,?,?)").run(hash(token), adminHash, origin, expiresAt)
+    return { token, expiresAt }
+  }
+  adminSession(token: string, adminHash: string, origin: string) {
+    const session = this.db.query<{ expires_at: number }, [string, string, string, number]>("SELECT expires_at FROM admin_sessions WHERE token_hash=? AND admin_hash=? AND origin=? AND expires_at>?").get(hash(token), adminHash, origin, Date.now())
+    if (!session) throw new Fault("session_expired", "Browser session expired or was revoked; sign in again", 401)
+    return { expiresAt: session.expires_at }
+  }
+  revokeAdminSession(token: string) { this.db.query("DELETE FROM admin_sessions WHERE token_hash=?").run(hash(token)) }
   source(id: string) {
     const row = this.db.query<SourceRow, [string]>("SELECT * FROM sources WHERE id=?").get(id)
     if (!row) throw new Fault("not_found", "Source not found", 404)
@@ -80,12 +105,17 @@ export class Store {
       this.invalidateApprovals("caller_id", id)
     })()
   }
-  grants() { return this.db.query<{ callerId: string; toolId: string }, []>("SELECT caller_id AS callerId,tool_id AS toolId FROM grants ORDER BY caller_id,tool_id").all() }
+  grants() {
+    return this.db.query<{ callerId: string; toolId: string; policy: string; revision: string }, []>("SELECT caller_id AS callerId,tool_id AS toolId,policy,revision FROM grants ORDER BY caller_id,tool_id").all().map(row => ({ ...row, policy: JSON.parse(row.policy) as AccessPolicy | { mode: "legacy" } }))
+  }
   grant(callerId: string, toolId: string, granted: boolean) {
     if (!this.callers().some(c => c.id === callerId && !c.revoked)) throw new Fault("not_found", "Active caller not found", 404)
     const tool = this.tools().find(t => t.id === toolId)
     if (!tool) throw new Fault("not_found", "Tool not found", 404)
-    if (granted) this.db.query("INSERT OR REPLACE INTO grants VALUES(?,?,?)").run(callerId, toolId, tool.fingerprint)
+    if (granted) {
+      // Compatibility route never resets an existing explicit policy.
+      this.db.query("INSERT OR IGNORE INTO grants(caller_id,tool_id,fingerprint) VALUES(?,?,?)").run(callerId, toolId, tool.fingerprint)
+    }
     else {
       this.db.transaction(() => {
         this.db.query("DELETE FROM grants WHERE caller_id=? AND tool_id=?").run(callerId, toolId)
@@ -93,10 +123,40 @@ export class Store {
       })()
     }
   }
+  setPolicies(callerId: string, tools: { id: string; fingerprint: string }[], input: AccessPolicy) {
+    const policy = accessPolicy.parse(input)
+    if (policy.mode === "scope" && (policy.expiresAt <= Date.now() || policy.expiresAt > Date.now() + 30 * 86_400_000 || Buffer.byteLength(canonicalJSON(policy.equals)) > 16 * 1024)) throw new Fault("invalid_scope", "Scope requires a future expiry within 30 days and at most 16 KiB of constraints", 422)
+    if (!tools.length || tools.length > 500 || new Set(tools.map(t => t.id)).size !== tools.length) throw new Fault("invalid_selection", "Select 1–500 distinct tool contracts", 422)
+    return this.db.transaction(() => {
+      if (!this.callers().some(c => c.id === callerId && !c.revoked)) throw new Fault("not_found", "Active caller not found", 404)
+      const catalog = this.tools()
+      for (const selected of tools) {
+        const tool = catalog.find(t => t.id === selected.id)
+        if (!tool || tool.fingerprint !== selected.fingerprint) throw new Fault("stale_selection", "Selected tool changed or disappeared; review the catalog again", 409)
+        if (policy.mode === "scope" && !Object.keys(policy.equals).every(key => Object.hasOwn((tool.inputSchema.properties ?? {}) as object, key))) throw new Fault("invalid_scope", "Scope fields must be declared top-level arguments of every selected tool", 422)
+      }
+      for (const tool of tools) {
+        this.db.query("INSERT INTO grants(caller_id,tool_id,fingerprint,policy,revision) VALUES(?,?,?,?,?) ON CONFLICT(caller_id,tool_id) DO UPDATE SET fingerprint=excluded.fingerprint,policy=excluded.policy,revision=excluded.revision").run(callerId, tool.id, tool.fingerprint, canonicalJSON(policy), randomUUID())
+        this.db.query("UPDATE approvals SET status='invalidated',arguments=NULL WHERE caller_id=? AND tool_id=? AND status IN ('pending','approved')").run(callerId, tool.id)
+      }
+      return { updated: tools.length }
+    })()
+  }
+  executionPolicy(callerId: string, tool: Tool, args: Record<string, unknown>) {
+    const row = this.db.query<{ policy: string; revision: string }, [string, string, string]>("SELECT policy,revision FROM grants WHERE caller_id=? AND tool_id=? AND fingerprint=?").get(callerId, tool.id, tool.fingerprint)
+    if (!row) throw new Fault("not_available", "Tool is not granted", 403)
+    const policy = JSON.parse(row.policy) as AccessPolicy | { mode: "legacy" }
+    if (policy.mode === "deny") throw new Fault("not_available", "Tool is denied to this caller", 403)
+    let ask = true
+    if (policy.mode === "legacy") ask = requiresApproval(this.source(tool.sourceId).config, tool.name, args)
+    else if (policy.mode === "allow") ask = false
+    else if (policy.mode === "scope") ask = policy.expiresAt <= Date.now() || !Object.entries(policy.equals).every(([key, value]) => Object.hasOwn(args, key) && canonicalJSON(args[key]) === canonicalJSON(value))
+    return { ask, revision: row.revision, policy }
+  }
   visible(callerId: string) {
     return this.db.query<ToolRow, [string]>(`SELECT t.* FROM tools t JOIN sources s ON s.id=t.source_id
       JOIN grants g ON g.tool_id=t.id AND g.fingerprint=t.fingerprint
-      JOIN callers c ON c.id=g.caller_id WHERE c.id=? AND c.revoked=0 AND s.enabled=1 ORDER BY t.id`).all(callerId).map(toolFrom)
+       JOIN callers c ON c.id=g.caller_id WHERE c.id=? AND c.revoked=0 AND s.enabled=1 AND json_extract(g.policy,'$.mode')<>'deny' ORDER BY t.id`).all(callerId).map(toolFrom)
   }
   authorized(callerId: string, id: string) {
     const tool = this.visible(callerId).find(t => t.id === id)
@@ -137,6 +197,10 @@ export class Store {
     this.assertApprovalBinding(row, row.caller_id, row.tool_id, row.args_hash)
     this.db.query("UPDATE approvals SET status=?,arguments=CASE WHEN ?='denied' THEN NULL ELSE arguments END WHERE id=? AND status='pending'").run(decision, decision, id)
     return this.approvalStatus(this.approval(id))
+  }
+  decideApprovals(ids: string[], decision: "approved" | "denied") {
+    if (!ids.length || ids.length > 100 || new Set(ids).size !== ids.length) throw new Fault("invalid_selection", "Select distinct pending requests", 422)
+    return this.db.transaction(() => ids.map(id => this.decideApproval(id, decision)))()
   }
   private assertApprovalBinding(row: ApprovalRow, callerId: string, toolId: string, argsHash: string) {
     const tool = this.authorized(callerId, toolId)

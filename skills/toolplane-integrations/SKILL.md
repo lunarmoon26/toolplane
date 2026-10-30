@@ -1,6 +1,6 @@
 ---
 name: toolplane-integrations
-description: Use Toolplane's Notion, Cloudflare and Blender packs through scoped search/call, with exact-argument per-call approvals. Load before the bundled domain workflow skills.
+description: Use Toolplane's Notion, Cloudflare and Blender packs through scoped search/call, persistent caller policies and approvals when required. Load before the bundled domain workflow skills.
 ---
 
 # Toolplane integrations
@@ -12,6 +12,11 @@ Never use old native plugin executors or direct service calls to evade approval.
 1. Search for the desired capability and identify its registered source. Names
    are not unique across sources; preserve the exact qualified ID.
 2. Use `search` with that ID to load the live schema. Only granted tools appear.
+   The returned `approvalPolicy` belongs to the caller key and survives host session
+   changes. `allow` runs automatically, `scope` runs within exact argument constraints
+   and expiry, `ask` always needs approval, and denied tools are not discoverable.
+   Existing `legacy` grants retain explicit read exemptions and ask for writes.
+   Callers cannot change policies. Do not invent host-native approval attestations.
 3. Call the ID with schema-valid arguments. An `approval` response means **no
    operation executed**. Ask an administrator to review the request in the console.
 4. Check `/api/approvals/:id` with the caller key, or wait for confirmation from
@@ -35,7 +40,7 @@ are symbolic references, not a requirement to install or execute the old plugins
 - `tool: list` means caller search and exact-ID description, not an executable
   upstream method. Resource catalog/reads use Notion `resources` and `resource`.
 - Old `notion.write`, `cloudflare.write` and `blender.write` references mean
-  this broker's per-call approval workflow. They are not approval tokens.
+  this broker's caller policy/approval workflow. They are not approval tokens.
 
 The four official Notion workflow skills and supporting files are unchanged.
 Load this adapter first; stale example payloads never override live schemas.

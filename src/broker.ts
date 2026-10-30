@@ -2,7 +2,6 @@ import { descriptorInput, Fault, MAX_CATALOG_BYTES, MAX_RESULT_BYTES, MAX_SCHEMA
 import { SearchIndex } from "./search"
 import { Store } from "./store"
 import type { Upstream } from "./upstream"
-import { requiresApproval } from "./policy"
 import { compileInputSchema } from "./schema"
 
 const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value) ?? "null")
@@ -36,7 +35,8 @@ export class Broker {
     if (input.id) {
       const tool = tools.find(t => t.id === input.id)
       if (!tool) throw new Fault("not_available", "Tool is unavailable or not granted to this caller", 403)
-      return { tool, approvalPolicy: "Explicit grants always required; non-demo operations may additionally require per-call approval." }
+      const grant = this.store.grants().find(g => g.callerId === callerId && g.toolId === tool.id)!
+      return { tool, approvalPolicy: grant.policy }
     }
     const key = tools.map(t => `${t.id}:${t.fingerprint}`).join("|")
     let cached = this.indices.get(callerId)
@@ -57,7 +57,8 @@ export class Broker {
       let tool = this.store.authorized(callerId, id)
       const validate = compileInputSchema(tool.inputSchema)
       if (!validate(args)) throw new Fault("invalid_arguments", `Arguments do not match inputSchema (${validate.errors?.[0]?.keyword ?? "schema"}); retrieve the full schema with search.id`, 422)
-      const approvalRequired = requiresApproval(this.store.source(tool.sourceId).config, tool.name, args)
+      const policy = this.store.executionPolicy(callerId, tool, args)
+      const approvalRequired = policy.ask
       if (approvalRequired) {
         if (!approvalId) return { approval: this.store.requestApproval(callerId, tool, args) }
         this.store.checkApproval(approvalId, callerId, id, args)
@@ -74,6 +75,9 @@ export class Broker {
         const current = this.store.authorized(callerId, id)
         if (current.fingerprint !== tool.fingerprint) throw new Fault("not_available", "Tool changed before dispatch", 403)
         signal?.throwIfAborted()
+        if (approvalRequired) this.store.checkApproval(approvalId!, callerId, id, args)
+        const currentPolicy = this.store.executionPolicy(callerId, current, args)
+        if (currentPolicy.revision !== policy.revision || currentPolicy.ask !== policy.ask) throw new Fault("policy_changed", "Caller policy changed or scope expired before dispatch; no call dispatched", 409)
         if (approvalRequired) this.store.checkApproval(approvalId!, callerId, id, args, true)
         dispatched = true
       }

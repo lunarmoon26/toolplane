@@ -22,6 +22,18 @@ export const sourceInput = z.object({
 export const enabledInput = z.object({ enabled: z.boolean() }).strict()
 export const callerInput = z.object({ name: z.string().trim().min(1).max(80) }).strict()
 export const grantInput = z.object({ toolId: z.string().min(1).max(400), granted: z.boolean() }).strict()
+export const accessPolicy = z.discriminatedUnion("mode", [
+  z.object({ mode: z.literal("allow") }).strict(),
+  z.object({ mode: z.literal("ask") }).strict(),
+  z.object({ mode: z.literal("deny") }).strict(),
+  z.object({ mode: z.literal("scope"), equals: z.record(z.string().min(1).max(200), z.json()).refine(value => Object.keys(value).length > 0 && Object.keys(value).length <= 50, "Scope requires 1–50 exact argument constraints"), expiresAt: z.number().int().positive() }).strict(),
+])
+export type AccessPolicy = z.infer<typeof accessPolicy>
+export const policiesInput = z.object({
+  tools: z.array(z.object({ id: z.string().min(1).max(400), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }).strict()).min(1).max(500),
+  policy: accessPolicy,
+}).strict()
+export const decisionsInput = z.object({ ids: z.array(z.string().uuid()).min(1).max(100), decision: z.enum(["approved", "denied"]) }).strict()
 export const searchInput = z.object({
   query: z.string().max(512).optional(), id: z.string().max(400).optional(),
   limit: z.number().int().min(1).max(10).default(5),

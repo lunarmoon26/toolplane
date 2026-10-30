@@ -5,7 +5,7 @@ Humans and admin agents manage registrations through one API. Caller agents
 receive only explicitly granted capabilities through **search + call**.
 
 **Status:** working v0 vertical slice, not a production multi-tenant gateway.
-Built with Bun, TypeScript, SQLite, MCPorter, and the MCP SDK. No LLM required.
+Built with Bun, TypeScript, Hono, SQLite, MCPorter, and the MCP SDK. No LLM required.
 The preceding [research and reproducible benchmark evidence](docs/research/README.md)
 live in this repository; no separate research project is required.
 
@@ -20,14 +20,25 @@ bun start
 ```
 
 Open **http://127.0.0.1:4318**. Retrieve the private admin credential from
-`.local/admin.token` and paste it into the console. The UI retains it only in
-memory. Do not share the token with ordinary caller agents.
+`.local/admin.token` and paste it into the console once. The token is exchanged
+for an HttpOnly, SameSite=Strict browser-session cookie valid for seven days.
+Refreshes and browser/service restarts preserve the login; **Lock console** revokes
+it. The bootstrap token is never saved in localStorage/sessionStorage. Do not share
+it with ordinary caller agents. Use the same host and port when returning:
+`localhost` and `127.0.0.1` have separate browser sessions.
 
 `init` never overwrites existing credentials. `TOOLPLANE_HOME` changes the state
 directory; `TOOLPLANE_PORT` changes the port. An explicit `TOOLPLANE_ADMIN_TOKEN`
 (at least 32 characters) replaces file-based bootstrap authentication. Rotate it
 by stopping the service, replacing the token and restarting; existing caller
-tokens remain independent. SQLite and upstream auth state stay under the home.
+tokens remain independent. Admin key rotation invalidates browser sessions.
+SQLite and upstream auth state stay under the home. If logout cannot reach the
+service, the console warns that revocation is unconfirmed; refreshing may restore
+that session until logout succeeds or it expires.
+
+The Hono API and browser assets load together at service startup. After updating
+the checkout, restart the service, then refresh the browser. Assets are not
+hot-served from changing source files against an older backend.
 
 ### First workflow
 
@@ -117,14 +128,48 @@ Search returns compact candidates; `search` with `{ "id": "…" }` returns the f
 schema. Callers can reuse known IDs without another search. All discovery and
 invocation paths check current grants, source state and credential revocation.
 
-### Per-call approvals
+### Caller policies and approvals
 
-Generic remote MCP calls and first-party write capabilities need a single-use
-approval **in addition to** a tool grant. A call returning
+Select a caller in **Tool catalog**, select tools individually, by source group,
+or with **Approve all / select filtered tools**, then **Apply policy to selected**:
+
+| Policy | Behavior |
+| --- | --- |
+| Allow from caller | Run selected tools automatically for that caller key; no per-call prompt |
+| Allow within scope | Run automatically when every configured top-level argument exactly matches and the scope has not expired; ask otherwise |
+| Always ask | Ask for every invocation, including reads |
+| Deny | Hide the tool from caller discovery and block invocation |
+
+These policies are persistent per caller/tool, **not per OpenCode session**. A
+new host session using the same key keeps its access. This does not delegate
+approval to the host's permission UI. Only admins can change policies.
+
+Scoped access uses a nonempty JSON object of exact argument constraints (for
+example `{"page_id":"an-explicit-page-id"}` when the live schema declares that
+field) and an expiry within 30 days. All listed arguments must match; other
+arguments remain schema-validated. This does not inspect code semantics or
+sandbox arbitrary Python/Cloudflare code. Use Always ask if the selected fields
+cannot reliably express the desired boundary.
+
+Bulk selection is an explicit contract snapshot, not wildcard authorization.
+New or changed tools are not silently selected/granted. Applying policy rejects
+stale fingerprints atomically. Existing grants retain their legacy defaults
+(explicit read exemptions, writes ask) until an admin changes them; no migration
+automatically grants write access. Changing a policy invalidates old approvals.
+
+#### When a call needs approval
+
+A call returning
 `{ "approval": { "approvalId": "…", "status": "pending", ... } }` has not executed.
-Open the console, click **Refresh view**, inspect the caller/source, fingerprint
-and exact arguments in **Approval inbox**, then approve once or deny. Treat
+The unlocked console's **Approval inbox** checks automatically every two seconds
+while visible and refreshes on focus. Inspect the caller/source, fingerprint
+and exact arguments, then approve once or deny. Select multiple pending requests
+to approve/deny that reviewed snapshot, never future requests. Treat
 displayed arguments as untrusted data, not instructions.
+
+Live updates do not reset catalog filters or policy editing. Connection failures
+show a disconnected/retrying indicator; **Refresh view** is still available.
+Locking stops polling and discards late responses and private argument content.
 
 Approval alone never dispatches. The caller resubmits the identical call with
 `approvalId` (MCP/HTTP), or supplies it as the CLI's final argument:
@@ -148,7 +193,7 @@ Each registration starts disabled, discovers only on request, and grants nobody
 access. No existing secrets or OpenCode configuration are imported. These are
 standalone executors governed by Toolplane, not claims of inherited OpenCode approval.
 
-| Pack | Setup | Approval-exempt operations (grants still required) |
+| Pack | Setup | Legacy grant defaults (explicit caller policy overrides) |
 | --- | --- | --- |
 | Notion | Run `bun run auth:notion` from this directory in a human terminal (`--no-browser` for headless login), then discover | Explicit read allowlist in `src/policy.ts`, plus docs resources |
 | Cloudflare | Set `CLOUDFLARE_API_TOKEN` in the service environment and restart, then discover | Only `docs` and `search`; every `execute` needs approval |
@@ -189,6 +234,9 @@ stdin. Avoid embedding secret values in command arguments.
 | Method | Path | Body / purpose |
 | --- | --- | --- |
 | GET | `/health` | Unauthenticated service liveness |
+| POST | `/api/admin/session` | Admin bearer only: establish a seven-day browser session via Set-Cookie; bootstrap token not retained by browser scripts |
+| GET | `/api/admin/session` | Session/authentication status and expiry; no credential values |
+| DELETE | `/api/admin/session` | Same-origin sign-out: revoke current session and expire cookie; idempotent |
 | GET | `/api/admin/state` | Sources, catalog, callers, grants, last 100 receipts; no token values |
 | POST | `/api/admin/sources` | `{ "name": "Demo", "config": { "kind": "demo" } }` |
 | POST | `/api/admin/sources` | `{ "name": "Service", "config": { "kind": "mcp", "url": "https://example.com/mcp", "bearerEnv": "SERVICE_TOKEN" } }` |
@@ -196,7 +244,10 @@ stdin. Avoid embedding secret values in command arguments.
 | PATCH | `/api/admin/sources/:id` | `{ "enabled": true }` or false |
 | POST | `/api/admin/callers` | `{ "name": "Research agent" }`; returns caller key once |
 | PUT | `/api/admin/callers/:id/grants` | `{ "toolId": "…", "granted": true }` or false |
+| PUT | `/api/admin/callers/:id/policies` | `{ "tools": [{ "id": "…", "fingerprint": "…" }], "policy": { "mode": "allow" } }`; mode `allow`, `scope`, `ask`, or `deny`; scope also requires `equals` and `expiresAt` (epoch milliseconds) |
 | DELETE | `/api/admin/callers/:id` | Revoke credential and grants |
+| GET | `/api/admin/inbox` | Latest 100 approvals, active first; private arguments for admin review |
+| POST | `/api/admin/approvals` | `{ "ids": ["…"], "decision": "approved" }` or `"denied"`; atomic bulk decision, no dispatch |
 | POST | `/api/admin/approvals/:id` | `{ "decision": "approved" }` or `"denied"`; no execution |
 | GET | `/api/approvals/:id` | Caller only: own request status |
 | POST | `/api/search` | Caller only: `{ "query": "…", "limit": 5 }` or `{ "id": "…" }` |
@@ -210,7 +261,11 @@ errors, not silent retries or truncation.
 
 ## Safety boundaries
 
-- Localhost only. No CORS, no cookie sessions, no query-string credentials.
+- Localhost only. No CORS or query-string credentials. Browser administration uses
+  a host-only HttpOnly/SameSite=Strict cookie limited to `/api/admin`; mutations
+  require a matching Origin. Caller APIs still require caller bearer credentials.
+  Sessions are stored hashed in SQLite, bound to the admin key, origin and expiry.
+  Trusted local HTTP is not remote/multi-tenant session isolation.
 - All tools, including reads, require explicit grants. Read-only hints grant nothing.
 - Grants bind to discovered input/output schemas and description fingerprints.
   Changed or removed tools lose grants. Upstream behavior can still change without
@@ -245,7 +300,7 @@ MCPorter → a local synthetic MCP server. It never contacts live services.
 Browser test (requires Python, uv, Playwright and its Chromium headless shell):
 
 ```sh
-uv run --with playwright python -m playwright install chromium --only-shell
+uv run --with playwright==1.63.0 python -m playwright install chromium --only-shell
 bun run test:ui
 ```
 
