@@ -3,3 +3,9 @@
 .source-details { min-width: 0; }
 #approval-list p { overflow-wrap: anywhere; }
 #pack-list .source-card { flex-wrap: wrap; }
+textarea { display: block; width: 100%; max-width: 100%; padding: 12px; margin: 8px 0 14px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+.tool-group th { background: #202b22; text-align: left; padding: 14px; }
+#pending-count { color: var(--accent); font-size: 13px; font-weight: normal; }
+#inbox-sync { font-size: 12px; color: var(--muted); }
+#scope-fields { min-width: 0; }
+#scope-expiry, #policy-mode { max-width: 100%; }

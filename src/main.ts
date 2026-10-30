@@ -4,6 +4,7 @@ import { Broker } from "./broker"
 import { handler } from "./http"
 import { Store } from "./store"
 import { createUpstream } from "./upstream"
+import { searchRankingFromEnv } from "./rerank"
 
 const home = resolve(process.env.TOOLPLANE_HOME ?? ".local")
 mkdirSync(home, { recursive: true, mode: 0o700 })
@@ -20,7 +21,7 @@ if (!adminToken) {
 const port = Number(process.env.TOOLPLANE_PORT ?? 4318)
 if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error("Invalid TOOLPLANE_PORT")
 const store = new Store(`${home}/toolplane.sqlite`)
-const broker = new Broker(store, createUpstream(`${home}/upstream-auth`))
+const broker = new Broker(store, createUpstream(`${home}/upstream-auth`), 30_000, searchRankingFromEnv())
 const server = Bun.serve({ hostname: "127.0.0.1", port, maxRequestBodySize: 64 * 1024, idleTimeout: 60, fetch: handler(broker, adminToken) })
 console.log(`Toolplane: ${server.url.origin}`)
 console.log(`Admin credential: ${home}/admin.token (or TOOLPLANE_ADMIN_TOKEN). No sources are automatically registered.`)

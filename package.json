@@ -12,11 +12,13 @@
     "check": "tsc --noEmit",
     "test": "bun test",
     "test:python": "python3 -m unittest discover -s tests -p 'test_*.py' -v",
-    "test:ui": "bun tests/run-ui.ts"
+    "test:ui": "bun tests/run-ui.ts",
+    "eval:search": "bun src/evaluate-search.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
     "ajv": "^8.17.1",
+    "hono": "4.13.13",
     "mcporter": "^0.12.4",
     "zod": "^4.3.6"
   },

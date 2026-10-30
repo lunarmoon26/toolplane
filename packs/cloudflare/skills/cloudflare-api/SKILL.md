@@ -20,8 +20,10 @@ confirm the target account, zone, resource, and intended effect before writes.
 Keep code mode enabled: it avoids loading thousands of endpoint schemas into
 context.
 
-Toolplane requires single-use per-call approval for every `execute` call and
-unfamiliar method, even if generated code claims to be read-only.
+Legacy Toolplane grants require single-use approval for every `execute` call and
+unfamiliar method, even if generated code claims to be read-only. Explicit caller
+policies override that default: follow the live `approvalPolicy` from exact-ID
+search, and do not invent another manual gate for an automatically allowed call.
 Do not bypass the gate with shell/API calls. Keep confirmation rules enabled.
 Permission rejection is not an API failure to work around. After an interrupted
 or timed-out write, inspect the resource before retrying: cancellation does not

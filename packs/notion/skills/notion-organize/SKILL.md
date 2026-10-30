@@ -28,7 +28,8 @@ Load `toolplane-integrations` first and use the registered Notion capabilities.
 
 - Briefly state the source and destination and whether creation is necessary.
   Confirm the exact set and access implications before bulk or destructive work.
-- Execute writes through Toolplane and its single-use per-call approval gate.
+- Execute writes through Toolplane's persistent caller policy. Use single-use
+  approval when requested, not as an extra gate for automatically allowed calls.
   User intent does not remove the permission gate. Don't substitute direct
   MCPorter shell calls, hard-coded session IDs, synthetic approvals, or a
   standalone mutation script that skips host permission evaluation.

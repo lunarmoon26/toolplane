@@ -10,7 +10,7 @@ try {
     line += new TextDecoder().decode(chunk.value)
   }
   const { url } = JSON.parse(line.split("\n")[0]) as { url: string }
-  const test = Bun.spawn(["uv", "run", "--with", "playwright", "python", "tests/ui_smoke.py"], { stdout: "inherit", stderr: "inherit", env: { ...process.env, TOOLPLANE_UI_URL: url } })
+  const test = Bun.spawn(["uv", "run", "--with", "playwright==1.63.0", "python", "tests/ui_smoke.py"], { stdout: "inherit", stderr: "inherit", env: { ...process.env, TOOLPLANE_UI_URL: url } })
   process.exitCode = await test.exited
 } finally {
   server.kill("SIGTERM")

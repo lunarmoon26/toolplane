@@ -4,6 +4,8 @@ Bun + TypeScript; local-first capability registry and invocation broker.
 
 - `docs/contract.md` owns v0 behavior and security boundaries.
 - `src/contracts.ts` owns API validation; SQLite schema is in `src/store.ts`.
+- Hono route composition is in `src/http.ts`; admin/caller routes and admin-session
+  middleware live in `src/http/`. Keep domain authorization in broker/store.
 - UI and admin agents use the same `/api/admin` API; caller credentials never
   administer registrations or grant themselves capabilities.
 - No live server registration, credential import, or global harness edits as tests.
@@ -13,7 +15,8 @@ Bun + TypeScript; local-first capability registry and invocation broker.
 - No general-purpose generated-code sandbox, native OpenCode permission bypasses,
   ambient credential forwarding, or automatic retry of ambiguous invocations.
 - Standalone Blender Python/Cloudflare CodeMode are explicit domain executors:
-  grants plus single-use exact-argument approval are required. Old plugin instances
+  grants plus persistent caller policies govern invocation; legacy writes still
+  require single-use exact-argument approval. Old plugin instances
   retain native permissions; migrated packs own standalone Toolplane approvals.
-- `skills/toolplane-integrations/SKILL.md` adapts domain workflow names; four official Notion skill trees
+- `skills/toolplane-integrations/SKILL.md` is the meta-skill for registered MCP/provider workflows, with provider references; four official Notion skill trees
   stay byte-identical. Keep provenance and licenses with imported modules.

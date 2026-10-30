@@ -10,22 +10,53 @@ export const endpoint = z.string().url().max(2048).refine(value => {
   return !url.username && !url.password && !url.search && !url.hash &&
     (url.protocol === "https:" || (url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)))
 }, "Use HTTPS (or loopback HTTP), without credentials, query or fragment")
+const credentialEnv = z.string().regex(/^[A-Z][A-Z0-9_]{0,79}$/)
+const reservedHeaders = new Set(["authorization", "proxy-authorization", "cookie", "set-cookie", "host", "connection", "content-length", "transfer-encoding", "upgrade", "te", "trailer", "keep-alive", "accept", "accept-encoding", "content-type", "origin", "referer", "mcp-session-id", "mcp-protocol-version"])
+export const headersEnvInput = z.record(z.string().regex(/^[A-Za-z][A-Za-z0-9-]{0,79}$/), credentialEnv).refine(value => {
+  const names = Object.keys(value).map(name => name.toLowerCase())
+  return names.length <= 8 && new Set(names).size === names.length && names.every(name => !reservedHeaders.has(name))
+}, "Use at most eight distinct credential headers; transport, session, cookie and Authorization headers are reserved")
 export const sourceInput = z.object({
   name: z.string().trim().min(1).max(80),
   config: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("pack"), pack: z.enum(["notion", "cloudflare", "blender"]) }).strict(),
     z.object({ kind: z.literal("demo") }).strict(),
     z.object({ kind: z.literal("mcp"), url: endpoint,
-      bearerEnv: z.string().regex(/^[A-Z][A-Z0-9_]{0,79}$/).optional() }).strict(),
+      bearerEnv: credentialEnv.optional(), headersEnv: headersEnvInput.optional() }).strict(),
   ]),
 }).strict()
 export const enabledInput = z.object({ enabled: z.boolean() }).strict()
 export const callerInput = z.object({ name: z.string().trim().min(1).max(80) }).strict()
 export const grantInput = z.object({ toolId: z.string().min(1).max(400), granted: z.boolean() }).strict()
+export const accessPolicy = z.discriminatedUnion("mode", [
+  z.object({ mode: z.literal("allow") }).strict(),
+  z.object({ mode: z.literal("ask") }).strict(),
+  z.object({ mode: z.literal("deny") }).strict(),
+  z.object({ mode: z.literal("scope"), equals: z.record(z.string().min(1).max(200), z.json()).refine(value => Object.keys(value).length > 0 && Object.keys(value).length <= 50, "Scope requires 1–50 exact argument constraints"), expiresAt: z.number().int().positive() }).strict(),
+])
+export type AccessPolicy = z.infer<typeof accessPolicy>
+export const policiesInput = z.object({
+  tools: z.array(z.object({ id: z.string().min(1).max(400), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }).strict()).min(1).max(500),
+  policy: accessPolicy,
+}).strict()
+export const decisionsInput = z.object({ ids: z.array(z.string().uuid()).min(1).max(100), decision: z.enum(["approved", "denied"]) }).strict()
 export const searchInput = z.object({
   query: z.string().max(512).optional(), id: z.string().max(400).optional(),
   limit: z.number().int().min(1).max(10).default(5),
 }).strict().refine(value => Boolean(value.id || value.query?.trim()), "Supply query or exact id")
+export const searchRankingInput = z.object({
+  url: z.string().url().max(2048).refine(value => {
+    const url = new URL(value)
+    return url.protocol === "http:" && ["127.0.0.1", "[::1]"].includes(url.hostname) &&
+      !url.username && !url.password && !url.search && !url.hash
+  }, "Use a numeric-loopback HTTP endpoint without credentials, query or fragment"),
+  model: z.string().trim().min(1).max(200),
+  mode: z.enum(["noul", "choice"]).default("noul"),
+  poolSize: z.number().int().min(2).max(50).default(30),
+  timeoutMs: z.number().int().min(1).max(10_000).default(1000),
+  maxConcurrent: z.number().int().min(1).max(8).default(2),
+}).strict()
+export type SearchRankingConfig = z.infer<typeof searchRankingInput>
 export const callInput = z.object({
   id: z.string().min(1).max(400), arguments: z.record(z.string(), z.unknown()).default({}),
   approvalId: z.string().uuid().optional(),
