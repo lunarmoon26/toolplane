@@ -9,15 +9,20 @@ import { handler } from "../src/http"
 import { Store } from "../src/store"
 import { createUpstream } from "../src/upstream"
 
-test("real HTTP management to two-tool MCP caller to MCPorter upstream", async () => {
+for (const headerAuth of [false, true]) test(`real HTTP management to two-tool MCP caller to ${headerAuth ? "pinned-origin header" : "MCPorter"} upstream`, async () => {
   let effects = 0
+  const keyEnv = "TOOLPLANE_INTEGRATION_HEADER_KEY", previousKey = process.env[keyEnv]
+  process.env[keyEnv] = "synthetic-mcp-header-key"
   const upstream = new McpServer({ name: "local-test", version: "1.0.0" })
   upstream.registerTool("echo", {
     description: "Echo a structured local fixture message", inputSchema: { message: z.string() },
   }, async ({ message }) => { effects++; return { content: [{ type: "text", text: message }], structuredContent: { message } } })
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: () => crypto.randomUUID(), enableJsonResponse: true })
   await upstream.connect(transport)
-  const upstreamHttp = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: req => transport.handleRequest(req) })
+  const upstreamHttp = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: req => {
+    if (headerAuth && req.headers.get("x-api-key") !== "synthetic-mcp-header-key") return new Response("Missing fixture key", { status: 401 })
+    return transport.handleRequest(req)
+  } })
   const store = new Store(":memory:")
   const broker = new Broker(store, createUpstream())
   const adminToken = "integration-admin-test-credential-".repeat(2)
@@ -29,7 +34,7 @@ test("real HTTP management to two-tool MCP caller to MCPorter upstream", async (
     return await response.json() as Record<string, any>
   }
   try {
-    const { source } = await api("/api/admin/sources", "POST", { name: "Local MCP fixture", config: { kind: "mcp", url: `${upstreamHttp.url.origin}/mcp` } })
+    const { source } = await api("/api/admin/sources", "POST", { name: "Local MCP fixture", config: { kind: "mcp", url: `${upstreamHttp.url.origin}/mcp`, ...(headerAuth ? { headersEnv: { "x-api-key": keyEnv } } : {}) } })
     expect(source.enabled).toBe(false)
     const { tools } = await api(`/api/admin/sources/${source.id}/refresh`, "POST")
     expect(tools).toHaveLength(1)
@@ -75,5 +80,6 @@ test("real HTTP management to two-tool MCP caller to MCPorter upstream", async (
     store.close()
     await upstream.close()
     await upstreamHttp.stop(true)
+    if (previousKey === undefined) delete process.env[keyEnv]; else process.env[keyEnv] = previousKey
   }
 }, 20_000)

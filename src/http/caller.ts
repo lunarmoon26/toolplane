@@ -12,7 +12,7 @@ export function callerRoutes(broker: Broker) {
     await next()
   })
   app.get("/approvals/:id", c => json(broker.store.approvalStatus(broker.store.approval(c.req.param("id"), c.get("caller").id))))
-  app.post("/search", async c => json(broker.search(c.get("caller").id, searchInput.parse(await body(c.req.raw)))))
+  app.post("/search", async c => json(await broker.searchRanked(c.get("caller").id, searchInput.parse(await body(c.req.raw)), c.req.raw.signal)))
   app.post("/call", async c => {
     const input = callInput.parse(await body(c.req.raw))
     return json(await broker.call(c.get("caller").id, input.id, input.arguments, c.req.raw.signal, input.approvalId))

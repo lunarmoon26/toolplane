@@ -1,0 +1,35 @@
+{
+  "name": "synthetic-discovery-smoke-v1",
+  "tools": [
+    { "id": "work-mail::search_email", "description": "Search email messages by sender, subject or words in their body. Read matching email." },
+    { "id": "work-mail::send_email", "description": "Send an email message to a recipient from the work account." },
+    { "id": "personal-mail::send_email", "description": "Send an email message to a recipient from the personal account." },
+    { "id": "billing::find_invoice", "description": "Find a customer invoice and read its amount, date and download link." },
+    { "id": "files::delete_file", "description": "Permanently delete a file. This cannot be undone." },
+    { "id": "files::trash_file", "description": "Move a file to trash, preserving the ability to restore it." },
+    { "id": "files::archive_file", "description": "Archive a file without deleting it." },
+    { "id": "calendar::list_events", "description": "List calendar events and meetings within a date range." },
+    { "id": "calendar::create_event", "description": "Create a calendar event or meeting with attendees." },
+    { "id": "issues::search_issues", "description": "Search issues by text, status or assignee." },
+    { "id": "issues::create_issue", "description": "Create a new issue with a title and description." },
+    { "id": "chat::send_message", "description": "Send a chat message to a channel or user. Does not send email." }
+  ],
+  "cases": [
+    { "id": "send-work-email", "query": "Email my manager about the outage from my work account", "expected": ["work-mail::send_email"] },
+    { "id": "send-personal-email", "query": "Send an email from my personal account", "expected": ["personal-mail::send_email"] },
+    { "id": "read-email", "query": "Find email messages from the vendor", "expected": ["work-mail::search_email"] },
+    { "id": "invoice-and-email", "query": "Find the customer invoice and email its link from my work account", "expected": ["billing::find_invoice", "work-mail::send_email"] },
+    { "id": "restoreable-removal", "query": "Remove this file but let me restore it later", "expected": ["files::trash_file"] },
+    { "id": "permanent-removal", "query": "Permanently delete this file", "expected": ["files::delete_file"] },
+    { "id": "archive-not-delete", "query": "Archive this file without deleting it", "expected": ["files::archive_file"] },
+    { "id": "meetings-list", "query": "List calendar meetings next week", "expected": ["calendar::list_events"] },
+    { "id": "schedule-meeting", "query": "Create a meeting with attendees", "expected": ["calendar::create_event"] },
+    { "id": "find-and-create-issue", "query": "Search issues for a duplicate then create a new issue", "expected": ["issues::search_issues", "issues::create_issue"] },
+    { "id": "chat-not-email", "query": "Send a chat message to the team channel", "expected": ["chat::send_message"] },
+    { "id": "lexical-no-match", "query": "weather forecast tomorrow", "expected": [] },
+    { "id": "overlap-no-match", "query": "Calculate the average email delivery time", "expected": [] },
+    { "id": "zh-send-email", "query": "用工作邮箱给经理发一封邮件", "expected": ["work-mail::send_email"] },
+    { "id": "zh-invoice", "query": "查询客户最近的发票", "expected": ["billing::find_invoice"] },
+    { "id": "mixed-language", "query": "查询 invoice 并用 work email 发送链接", "expected": ["billing::find_invoice", "work-mail::send_email"] }
+  ]
+}

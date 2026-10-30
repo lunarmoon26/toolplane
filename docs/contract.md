@@ -1,5 +1,104 @@
 # Toolplane v0 contract
 
+## Registered-provider meta-skill and explicit header auth (2026-10-29)
+
+`skills/toolplane-integrations` is a portable instruction adapter for any registered
+MCP source, not only the bundled packs. Provider skills keep their upstream
+ownership and supply domain workflows; the adapter routes available operations
+through caller search, exact-ID contracts and broker invocation. Skills neither
+register sources nor grant tools or spend approval. A provider skill's direct
+HTTP/SDK/native-tool examples are not an alternate execution path under this
+workflow. Missing capabilities are reported rather than invented or bypassed.
+Skill loading order is host guidance, not an enforceable sandbox or automatic
+installation/dependency mechanism. Broker policy remains authoritative.
+
+Remote MCP registrations optionally declare `headersEnv`, an at-most-eight-entry
+map from unique case-insensitive credential header names to explicit environment
+variable names. `bearerEnv` retains its existing Authorization Bearer behavior.
+Header values are resolved only in the service process; inline secrets and
+overrides of transport/session/cookie/Authorization headers are rejected. Missing,
+empty, control-character-containing or over-8-KiB values fail before connection.
+Only references are stored or returned in management responses. Restart after
+credential changes to replace cached clients; no caller credential is forwarded.
+Custom-header sources use the official MCP SDK's Streamable HTTP transport with
+pinned-origin requests, redirects/cookies/environment proxies disabled, no OAuth
+and no SSE fallback. Existing keyless/Bearer-only sources and bundled packs retain
+MCPorter. This is necessary because MCPorter's current public configuration cannot
+constrain credential forwarding on redirects.
+An established custom-header client's HTTP 404 invalidates its cached session;
+the failed operation is never replayed. A later explicit request reconnects.
+
+Exa is an ordinary remote MCP registration, not a new bundled pack. Its adapter
+reference owns broker-specific setup and links canonical Exa docs; official Exa
+skills are installed separately and remain unmodified. Exa's `x-api-key` maps to
+an explicitly configured `EXA_API_KEY` reference. URLs with query parameters
+(including `?tools=` and `?login`) remain unsupported; tool grants, not discovery
+or authentication, determine callable capabilities. Authenticated catalogs can
+include usage-based research operations, which require separate review/grants.
+
+Acceptance: synthetic tests cover explicit header resolution, missing/invalid
+credentials, reserved/duplicate names, bearer compatibility, no ambient headers,
+management/caller separation, stored-reference-only state, discovery without
+effects and unchanged approval requirements. No live Exa discovery or invocation,
+official skill installation, global harness edits or credential import is a test.
+
+Verification: 115 Bun tests (including both real local MCP transports,
+same-/cross-origin redirect rejection and session expiry without replay),
+10 Python tests and typecheck pass.
+Official Notion skill integrity remains covered; Exa skills are not vendored.
+
+Isolated provider discovery verified 2026-10-30: the experiment worktree's
+`toolplane-exa-dev.service` was run on loopback port 4320 with independent state under
+`.local/exa-dev`. An explicitly supplied `EXA_API_KEY` header reference discovered
+three Exa capabilities, including authenticated `agent_run`. The source remains
+disabled, with zero callers, grants, invocation receipts and approvals. No search
+or Agent request was submitted. This validates catalog/auth transport, not paid
+invocation, billing or end-to-end provider workflows. The original service and
+global harness configuration are unchanged. The dev service was stopped after
+verification at the operator's request; if restarted, stop it with
+`systemctl --user stop toolplane-exa-dev.service`. Its transient unit is not
+boot-enabled. Live schemas, not this dated observation, own tool arguments.
+
+## Optional decision-assisted search (2026-10-29)
+
+Query discovery optionally reranks a bounded BM25 shortlist using a trusted local
+System One endpoint. It defaults off; explicit IDs (including an exact ID supplied
+as the query), empty pools and single candidates never invoke inference. The
+public search inputs, ten-result limit and exact-schema lookup stay unchanged.
+This is reranking, not semantic retrieval: tools missing from the lexical pool
+cannot be recovered. There is no pruning, semantic identity merging, argument
+generation, authorization inference or automatic tool execution.
+
+Only already-visible compact cards and the query enter inference. Credentials,
+full schemas, arguments, results and approval policies do not. Configuration is
+operator-owned, not caller-controlled, and accepts only numeric-loopback HTTP
+endpoints with redirects disabled; this slice has no hosted transport. Local
+inference is trusted code and may itself use remote services: endpoint validation
+does not sandbox it or guarantee its retention policy.
+
+Choice ranks within a pool; batched Noul scores each candidate's usefulness. Both
+must return complete, valid answers. Neither distribution nor normalized rank is
+advertised as calibrated confidence. The returned order must be an exact
+permutation of the shortlist; invalid answers or abstention restore lexical order.
+Deadlines, bounded concurrency and a circuit breaker bound request-path overhead.
+Timed-out work retains its concurrency slot until the underlying work settles;
+there are no retries. Request cancellation aborts ranking and returns an error.
+After awaited ranking, discovery rechecks caller visibility and fingerprints;
+catalog changes discard the ranking and recompute lexical results. Invocation
+retains its separate live policy checks. Search does not persist queries/cards or
+raw model responses; enabled query responses include bounded ranking status only.
+
+Acceptance: offline tests cover disabled/exact paths, caller-scoped candidate
+selection, both scoring shapes, invalid/foreign answers, timeouts, cancellation,
+capacity/circuit fallback, revocation and catalog changes during inference. The
+offline evaluation reports candidate recall, ranking and all-required-tools
+coverage on labeled fixtures, not production accuracy or end-to-end task success.
+
+Verified in the isolated experiment worktree: `bun run check`, 108 Bun tests,
+10 Python tests, fixture-only UI smoke, and `git diff --check` pass. Synthetic
+loopback HTTP and evaluator-subprocess tests cover both decision shapes and
+explicit inference opt-in; no real decision model or hosted API was evaluated.
+
 ## Persistent browser administration (2026-10-23)
 
 The console exchanges a valid admin bearer credential for a random, seven-day
@@ -111,10 +210,12 @@ catalog/policy tests and synthetic transports require no live accounts or app wr
 
 Humans use a local operating UI to register and manage capabilities. Authorized
 admin agents use the same HTTP management API. Caller agents use search and
-invocation only. The registry does not contain an LLM or own an agent loop.
+invocation only. The registry requires no LLM and does not own an agent loop;
+optional local decision-assisted search is scoped to discovery ordering.
 
 One Bun process owns SQLite registrations, catalog snapshots, callers, grants
-and metadata-only invocation receipts. MCPorter owns upstream MCP clients.
+and metadata-only invocation receipts. MCPorter owns the existing upstream clients;
+custom-header sources use the pinned-origin MCP SDK transport described above.
 The UI is a client, not a second registry. The stdio MCP facade is a client of
 the same HTTP caller API and exposes only `search` and `call`.
 
@@ -151,8 +252,8 @@ source-file edits take effect after restart, not ahead of the running backend.
   calls. Calls already dispatched may complete; disabling is not rollback.
 - Demo, remote MCP HTTP and bundled pack sources are accepted. Generic HTTP is limited to
   loopback URLs; other endpoints require HTTPS. Endpoint userinfo, query strings
-  and fragments are rejected. Optional bearer auth names an explicit environment
-  variable; secret values never enter registration records or UI responses.
+  and fragments are rejected. Optional bearer or custom-header auth names explicit
+  environment variables; secret values never enter registration records or UI responses.
 - Source registration is a trusted-admin action, not a general URL-fetch proxy.
   MCPorter handles transport. Do not expose this service to a network or use it
   as a hostile multi-tenant boundary.

@@ -3,6 +3,7 @@ import { SearchIndex } from "./search"
 import { Store } from "./store"
 import type { Upstream } from "./upstream"
 import { compileInputSchema } from "./schema"
+import type { SearchRanking } from "./rerank"
 
 const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value) ?? "null")
 
@@ -10,7 +11,7 @@ export class Broker {
   private refreshing = new Set<string>()
   private active = new Map<string, number>()
   private indices = new Map<string, { key: string; index: SearchIndex }>()
-  constructor(readonly store: Store, private upstream: Upstream, private timeoutMs = 30_000) {}
+  constructor(readonly store: Store, private upstream: Upstream, private timeoutMs = 30_000, private ranking?: SearchRanking) {}
   async refresh(id: string) {
     if (this.refreshing.has(id)) throw new Fault("refresh_busy", "Refresh already in progress", 409)
     const source = this.store.source(id)
@@ -45,6 +46,23 @@ export class Broker {
       this.indices.set(callerId, cached)
     }
     return { candidates: cached.index.search(input.query!, input.limit).map(({ id, name, description, fingerprint }) => ({ id, name, description: description.slice(0, 400), fingerprint })), schemaHint: "Use search with exact id to retrieve the full input schema." }
+  }
+  async searchRanked(callerId: string, input: { query?: string; id?: string; limit: number }, signal?: AbortSignal) {
+    const checkCancelled = () => { if (signal?.aborted) throw new Fault("search_cancelled", "Search cancelled; no tools invoked", 499) }
+    checkCancelled()
+    if (!this.ranking || input.id) return this.search(callerId, input)
+    const snapshot = this.store.visible(callerId).map(t => `${t.id}:${t.fingerprint}`).join("|")
+    const pool = this.search(callerId, { ...input, limit: Math.max(input.limit, this.ranking.poolSize) })
+    if (!pool.candidates) return pool
+    if (pool.candidates.length < 2 || pool.candidates.some(c => c.id === input.query?.trim())) return this.search(callerId, input)
+    const result = await this.ranking.rank(input.query!, pool.candidates, signal)
+    checkCancelled()
+    if (!this.store.callers().some(c => c.id === callerId && !c.revoked)) throw new Fault("not_available", "Caller was revoked during search", 403)
+    const current = this.store.visible(callerId).map(t => `${t.id}:${t.fingerprint}`).join("|")
+    if (snapshot !== current) return { ...this.search(callerId, input), ranking: { status: "fallback", reason: "catalog_changed" } }
+    const byId = new Map(pool.candidates.map(card => [card.id, card]))
+    return { candidates: result.ids.slice(0, input.limit).map(id => byId.get(id)!), schemaHint: pool.schemaHint,
+      ranking: { status: result.status, ...(result.reason ? { reason: result.reason } : {}) } }
   }
   async call(callerId: string, id: string, args: Record<string, unknown>, signal?: AbortSignal, approvalId?: string) {
     // Pin the values reviewed and executed even for in-process callers.

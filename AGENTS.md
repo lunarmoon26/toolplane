@@ -18,5 +18,5 @@ Bun + TypeScript; local-first capability registry and invocation broker.
   grants plus persistent caller policies govern invocation; legacy writes still
   require single-use exact-argument approval. Old plugin instances
   retain native permissions; migrated packs own standalone Toolplane approvals.
-- `skills/toolplane-integrations/SKILL.md` adapts domain workflow names; four official Notion skill trees
+- `skills/toolplane-integrations/SKILL.md` is the meta-skill for registered MCP/provider workflows, with provider references; four official Notion skill trees
   stay byte-identical. Keep provenance and licenses with imported modules.

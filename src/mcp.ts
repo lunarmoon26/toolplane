@@ -5,7 +5,7 @@ import { request } from "./client"
 
 if (!process.env.TOOLPLANE_TOKEN) throw new Error("Set TOOLPLANE_TOKEN to a caller credential, not an admin credential")
 const server = new McpServer({ name: "toolplane", version: "0.1.0" }, {
-  instructions: "Load the toolplane-integrations skill before bundled Notion, Cloudflare or Blender workflows. Use search for authorized IDs, then exact-id search for schemas and caller approvalPolicy. Policies persist with the caller key across host sessions: allow runs automatically, scope runs within exact argument constraints and expiry, ask requires approval, deny blocks. Legacy native tool names map to this broker, never bypass transports. A returned approval means nothing executed: ask an administrator to review it, then resubmit identical arguments with approvalId only after approval. Never retry ambiguous effects. Caller keys cannot administer policies.",
+  instructions: "Load the toolplane-integrations meta-skill before any registered-provider workflow, including Exa or bundled Notion, Cloudflare and Blender skills. Provider skills supply workflows, not permission or alternate direct API execution paths. Use search for authorized IDs, then exact-id search for schemas and caller approvalPolicy. Policies persist with the caller key across host sessions: allow runs automatically, scope runs within exact argument constraints and expiry, ask requires approval, deny blocks. Never bypass transports. A returned approval means nothing executed: ask an administrator to review it, then resubmit identical arguments with approvalId only after approval. Never retry ambiguous effects. Caller keys cannot administer policies.",
 })
 async function invoke(path: string, args: unknown) {
   try {
